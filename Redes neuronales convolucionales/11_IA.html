@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modificar y redibujar imagen en Canvas</title>
+</head>
+
+<body>
+    <canvas id="myCanvas" width="20" height="20"></canvas>
+    <canvas id="myCanvas2" width="20" height="20"></canvas>
+
+    <script>
+
+
+
+        function leakyReLU(x) {
+            return x > 0 ? x : 0;
+            // return 1 / (1 + Math.exp(-x));
+            // return x
+        }
+
+
+        function Crearkernel() {
+
+            // let kernel1 = Array(9)
+
+            // for (let i = 0; i < kernel1.length; i++) {
+            //     kernel1[i] = Math.random() * -2 + 1
+            // }
+
+            // let d = 9           
+
+            // // let kernel1 = [
+            // //     1 / d, 1 / d, 1 / d,             
+            // //     1 / d, 1 / d, 1 / d,
+            // //     1 / d, 1 / d, 1 / d
+            // // ]
+            let kernel1 = [
+                -2,0,1,
+                -2,0,1,
+                -2,0,1
+            ]
+
+
+            // console.log(kernel1)
+
+            return kernel1
+        }
+
+
+
+        let neuronasConvo = []
+
+
+
+        function crearNCC() {
+            let pesos = Crearkernel()
+            neuronasConvo.push(pesos)
+        }
+
+
+        crearNCC()
+        crearNCC()
+
+
+
+
+
+
+        function convolucionar(neurona, datos) {
+            let suma = 0
+            let NMA = 0
+            for (let i = 0; i < datos.length; i++) {
+                let x = neurona[i] * datos[i]
+                suma += x
+            }
+            NMA = suma / datos.length
+            return { suma, NMA }
+
+        }
+
+
+        function convolicion(pixels, NN) {
+
+            let datosRojos = []
+
+
+            datosRojos.push(Array(canvas.width + 2).fill(0));
+
+            for (let i = 0; i < pixels.length; i += canvas.width * 4) {
+                let dt = [0]
+
+                for (let e = 0; e < canvas.width * 4; e += 4) {
+                    dt.push(pixels[e + i])
+                }
+                dt.push(0)
+                datosRojos.push(dt)
+            }
+
+            datosRojos.push(Array(canvas.width + 2).fill(0));
+
+
+            console.log(datosRojos)
+
+
+            let imgConvol = []
+            let imgPoll = []
+
+            let w = 0
+            let h = 0
+
+
+            for (let i = 1; i < datosRojos.length - 1; i++) {
+                w = 0
+                for (let e = 1; e < datosRojos[i].length - 1; e++) {
+                    let p = [i, e]
+
+                    let inicial = [
+                        datosRojos[p[0] - 1][p[1] - 1], datosRojos[p[0] - 1][p[1]], datosRojos[p[0] - 1][p[1] + 1],
+                        datosRojos[p[0]][p[1] - 1], datosRojos[p[0]][p[1]], datosRojos[p[0]][p[1] + 1],
+                        datosRojos[p[0] + 1][p[1] - 1], datosRojos[p[0] + 1][p[1]], datosRojos[p[0] + 1][p[1] + 1],
+                    ]
+
+                    let result = convolucionar(neuronasConvo[NN], inicial)
+                    imgConvol.push(result.suma)
+                    if (e % 3 && i % 3) {
+                        imgPoll.push(result.NMA)
+                        w++
+
+                    }
+                }
+                if (i % 3) {
+                    h++
+
+                }
+            }
+
+
+            let d = {
+                w,
+                h
+            }
+
+            // console.log(imgConvol)
+            return { imgConvol, datosRojos, imgPoll, d }
+        }
+
+
+        function transformarPixels(pixels, NN) {
+
+            let imgConvol = convolicion(pixels, NN)
+
+            let dato = 0
+            for (let i = 0; i < pixels.length; i += 4) {
+
+
+                pixels[i] = imgConvol.imgConvol[dato]
+                pixels[i + 1] = 0
+                pixels[i + 2] = 0
+
+                dato++
+            }
+            return { pixels, imgConvol }
+        }
+
+
+
+        // URL de la imagen
+
+        const imageUrl = "img1.jpg";
+
+        // Seleccionar el canvas y obtener el contexto
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Seleccionar el canvas y obtener el contexto
+        const canvas2 = document.getElementById('myCanvas2');
+        const ctx2 = canvas2.getContext('2d');
+        // Crear un objeto de imagen
+        const img = new Image();
+
+        // Establecer la URL de la imagen
+        img.src = imageUrl;
+
+        // Dibujar la imagen en el canvas cuando esté cargada
+        img.onload = function () {
+            // Ajustar el tamaño del canvas si es necesario
+            canvas.width = img.width;
+            canvas.height = img.height;
+            canvas2.width = img.width;
+            canvas2.height = img.height;
+
+            // Dibujar la imagen en el canvas
+            ctx.drawImage(img, 0, 0);
+
+            // Obtener los datos de los píxeles de toda la imagen
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let pixels = imageData.data;
+
+            data = transformarPixels(pixels, 0)
+
+            pixels = data.pixels
+
+            ctx.putImageData(imageData, 0, 0);
+
+
+            canvas2.width = data.imgConvol.d.w
+            canvas2.height = data.imgConvol.d.h
+
+            let imageData2 = ctx2.getImageData(0, 0, canvas2.width, canvas2.height);
+
+
+            const pixels2 = imageData2.data;
+
+            let dato2 = 0
+            for (let i = 0; i < pixels2.length; i += 4) {
+
+
+                pixels2[i] = data.imgConvol.imgPoll[dato2]
+                pixels2[i + 1] = 0
+                pixels2[i + 2] = 0
+                pixels2[i + 3] = 255
+
+                dato2++
+            }
+
+            console.log(data.imgConvol.imgPoll)
+
+            imageData2.data = pixels2
+
+            ctx2.putImageData(imageData2, 0, 0);
+
+            //convolucion segunda :    
+            // Obtener los datos de los píxeles de toda la imagen
+            canvas.width = canvas2.width
+            canvas.height = canvas2.height
+
+            const imageData3 = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let pixels3 = imageData3.data;
+
+            data2 = transformarPixels(pixels3, 0)
+
+            pixels3 = data2.pixels
+
+            ctx.putImageData(imageData3, 0, 0);
+
+
+            canvas2.width = data.imgConvol.d.w
+            canvas2.height = data.imgConvol.d.h
+
+            // let imageData4 = ctx2.getImageData(0, 0, canvas2.width, canvas2.height);
+
+
+            // const pixels4 = imageData4.data;
+
+            // let dato4 = 0
+            // for (let i = 0; i < pixels4.length; i += 4) {
+
+
+            //     pixels4[i] = data2.imgConvol.imgPoll[dato2]
+            //     pixels4[i + 1] = 0
+            //     pixels4[i + 2] = 0
+            //     pixels4[i + 3] = 255
+
+            //     dato4++
+            // }
+
+            // console.log(data2.imgConvol.imgPoll)
+
+            // imageData2.data = pixels4
+
+            // ctx2.putImageData(imageData4, 0, 0);
+
+
+
+
+
+
+        };
+
+        // Manejo de errores de carga
+        img.onerror = function () {
+            console.error("Error al cargar la imagen.");
+        };
+    </script>
+</body>
+
+</html>
